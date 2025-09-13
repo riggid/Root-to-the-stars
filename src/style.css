@@ -1,0 +1,26 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  background: #0b0b0f;
+}
+canvas { display: block; }
+.planet-label {
+  color: white;
+  font-size: 12px;
+  text-shadow: 0 0 4px black;
+}
+.control-panel {
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+.scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.3);
+}
+.scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 3px;
+}
