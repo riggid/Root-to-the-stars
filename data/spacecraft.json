@@ -1,0 +1,47 @@
+{
+  "Falcon 9": {
+    "dry_mass_kg": 25600,
+    "fuel_capacity_kg": 411000,
+    "specific_impulse_s": 311,
+    "thrust_n": 7607000,
+    "payload_capacity_kg": 22800,
+    "cost_per_launch_usd": 62000000,
+    "reusable": true
+  },
+  "Falcon Heavy": {
+    "dry_mass_kg": 64000,
+    "fuel_capacity_kg": 1400000,
+    "specific_impulse_s": 311,
+    "thrust_n": 22819000,
+    "payload_capacity_kg": 63800,
+    "cost_per_launch_usd": 90000000,
+    "reusable": true
+  },
+  "Saturn V": {
+    "dry_mass_kg": 130000,
+    "fuel_capacity_kg": 2300000,
+    "specific_impulse_s": 421,
+    "thrust_n": 34020000,
+    "payload_capacity_kg": 140000,
+    "cost_per_launch_usd": 1230000000,
+    "reusable": false
+  },
+  "Starship": {
+    "dry_mass_kg": 120000,
+    "fuel_capacity_kg": 1200000,
+    "specific_impulse_s": 378,
+    "thrust_n": 72000000,
+    "payload_capacity_kg": 150000,
+    "cost_per_launch_usd": 10000000,
+    "reusable": true
+  },
+  "SLS Block 1": {
+    "dry_mass_kg": 85000,
+    "fuel_capacity_kg": 970000,
+    "specific_impulse_s": 452,
+    "thrust_n": 39140000,
+    "payload_capacity_kg": 95000,
+    "cost_per_launch_usd": 2000000000,
+    "reusable": false
+  }
+}
