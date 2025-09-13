@@ -1,200 +1,202 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Google Map of Space</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Three.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- OrbitControls for camera interaction -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #000; }
-        canvas { display: block; }
-        .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; position: absolute; top: 50%; left: 50%; margin-top: -25px; margin-left: -25px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Trajectory Planner</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+  body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #0b0b0f; }
+  canvas { display: block; }
+  .loader {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    width: 50px; height: 50px;
+    animation: spin 1s linear infinite;
+    position: absolute; top: 50%; left: 50%;
+    margin-top: -25px; margin-left: -25px;
+  }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .planet-label {
+    color: white;
+    font-size: 12px;
+    text-shadow: 0 0 4px black;
+  }
+</style>
 </head>
-<body class="bg-gray-900 text-white">
+<body>
+<div id="container" class="relative w-full h-screen">
+  <canvas id="spaceCanvas"></canvas>
+  <div id="loader" class="loader"></div>
 
-    <div id="container" class="relative w-full h-screen">
-        <canvas id="spaceCanvas"></canvas>
-        <div id="loader" class="loader"></div>
-        <div class="absolute top-4 left-4 p-4 rounded-lg bg-black bg-opacity-50 max-w-sm">
-            <h1 class="text-3xl font-bold mb-2">Live Google Map of Space</h1>
-            <p class="text-sm text-gray-400">Navigate the solar system with your mouse. Planet positions are updated live from a real-time API.</p>
-            <p id="status" class="text-xs text-yellow-400 mt-2">Fetching live planet data from WSL server...</p>
-        </div>
+  <div class="absolute top-4 left-4 p-4 rounded-lg bg-black bg-opacity-70 max-w-sm space-y-2">
+    <h1 class="text-2xl font-bold text-white mb-2">Trajectory Planner</h1>
+
+    <label class="text-white font-medium">Origin Planet:</label>
+    <select id="origin" class="w-full mb-2 rounded border border-gray-600 bg-black text-white p-1">
+      <option>Earth</option>
+      <option>Mars</option>
+      <option>Venus</option>
+      <option>Mercury</option>
+      <option>Jupiter</option>
+      <option>Saturn</option>
+      <option>Uranus</option>
+      <option>Neptune</option>
+    </select>
+
+    <label class="text-white font-medium">Target Planet:</label>
+    <select id="target" class="w-full mb-2 rounded border border-gray-600 bg-black text-white p-1">
+      <option>Mars</option>
+      <option>Earth</option>
+      <option>Venus</option>
+      <option>Mercury</option>
+      <option>Jupiter</option>
+      <option>Saturn</option>
+      <option>Uranus</option>
+      <option>Neptune</option>
+    </select>
+
+    <label class="text-white font-medium">Departure Start:</label>
+    <input type="date" id="dep_start" class="w-full mb-2 rounded p-1 bg-black border border-gray-600 text-white" value="2025-09-20">
+
+    <label class="text-white font-medium">Departure End:</label>
+    <input type="date" id="dep_end" class="w-full mb-2 rounded p-1 bg-black border border-gray-600 text-white" value="2025-10-20">
+
+    <label class="text-white font-medium">TOF (days):</label>
+    <div class="flex space-x-2 mb-2">
+      <input type="number" id="tof_min" class="w-1/2 rounded p-1 bg-black border border-gray-600 text-white" value="120">
+      <input type="number" id="tof_max" class="w-1/2 rounded p-1 bg-black border border-gray-600 text-white" value="400">
     </div>
 
-    <script>
-        window.onload = async function() {
-            // --- SCENE SETUP ---
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
-            const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: document.getElementById('spaceCanvas') });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            camera.position.set(0, 250, 600);
+    <button id="computeBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded font-semibold">Compute Trajectory</button>
+    <p id="status" class="text-yellow-400 text-sm mt-1">Select planets and press Compute.</p>
+  </div>
+</div>
 
-            // --- STARFIELD & LIGHTING ---
-            const starGeometry = new THREE.BufferGeometry();
-            const starVertices = [];
-            for (let i = 0; i < 15000; i++) {
-                starVertices.push((Math.random() - 0.5) * 3000, (Math.random() - 0.5) * 3000, (Math.random() - 0.5) * 3000);
-            }
-            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5 });
-            const stars = new THREE.Points(starGeometry, starMaterial);
-            scene.add(stars);
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
-            scene.add(ambientLight);
-            const sunLight = new THREE.PointLight(0xffffff, 2, 0, 0);
-            scene.add(sunLight);
+<script>
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 5000);
+const renderer = new THREE.WebGLRenderer({ antialias:true, canvas: document.getElementById('spaceCanvas') });
+renderer.setSize(window.innerWidth, window.innerHeight);
 
-            // --- CONTROLS ---
-            const controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.minDistance = 50;
-            controls.maxDistance = 2000;
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 50;
+controls.maxDistance = 3000;
 
-            // --- PLANET DATA (VISUALS & FALLBACK ANIMATION) ---
-            const planetsData = [
-                { name: 'Mercury', radius: 2.4, color: 0x8b8b8b, orbitRadius: 60, speed: 1.6 },
-                { name: 'Venus', radius: 6.0, color: 0xcd7f32, orbitRadius: 90, speed: 1.2 },
-                { name: 'Earth', radius: 6.3, color: 0x0077ff, orbitRadius: 120, speed: 1.0 },
-                { name: 'Mars', radius: 3.3, color: 0xff4500, orbitRadius: 150, speed: 0.8 },
-                { name: 'Jupiter', radius: 71.4, color: 0xa8772f, orbitRadius: 250, speed: 0.4 },
-                { name: 'Saturn', radius: 60.2, color: 0xf1c40f, orbitRadius: 350, speed: 0.3 },
-                { name: 'Uranus', radius: 25.5, color: 0x4dd5ff, orbitRadius: 450, speed: 0.2 },
-                { name: 'Neptune', radius: 24.7, color: 0x2e86c1, orbitRadius: 550, speed: 0.1 }
-            ];
+camera.position.set(500, 400, 800);
 
-            let liveDataMode = true; // Flag to track if we're using live data or fallback
-            const planetGroups = {}; // Use an object for easy lookup by name
+// --- Stars ---
+const starGeo = new THREE.BufferGeometry();
+const starVertices = [];
+for(let i=0;i<10000;i++){
+  starVertices.push((Math.random()-0.5)*6000, (Math.random()-0.5)*6000, (Math.random()-0.5)*6000);
+}
+starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVertices,3));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0xffffff, size:1.2 }));
+scene.add(stars);
 
-            // --- CREATE 3D OBJECTS ---
-            // Sun
-            const sunGeometry = new THREE.SphereGeometry(25, 64, 64);
-            const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xfdb813 });
-            const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-            scene.add(sunMesh);
+// --- Sun ---
+const sun = new THREE.Mesh(new THREE.SphereGeometry(25,64,64), new THREE.MeshBasicMaterial({ color:0xffdd33 }));
+scene.add(sun);
 
-            // Planets, Orbits, Moon, and Satellite
-            planetsData.forEach(p => {
-                const planetGeometry = new THREE.SphereGeometry(p.radius, 32, 32);
-                const planetMaterial = new THREE.MeshLambertMaterial({ color: p.color });
-                const planetMesh = new THREE.Mesh(planetGeometry, planetMaterial);
-                
-                const planetGroup = new THREE.Object3D();
-                planetGroup.add(planetMesh);
-                scene.add(planetGroup);
+// --- Realistic Planet Scaling ---
+const AU = 149597870; // km
+const planetData = [
+  {name:'Mercury', radius:2.44, orbit:0.387*AU, color:0x909090},
+  {name:'Venus', radius:6.05, orbit:0.723*AU, color:0xe6c27a},
+  {name:'Earth', radius:6.37, orbit:1*AU, color:0x3a90ff},
+  {name:'Mars', radius:3.39, orbit:1.524*AU, color:0xff4500},
+  {name:'Jupiter', radius:69.91, orbit:5.203*AU, color:0xd4a06a},
+  {name:'Saturn', radius:58.23, orbit:9.537*AU, color:0xf1d17b},
+  {name:'Uranus', radius:25.36, orbit:19.191*AU, color:0x7fe6ff},
+  {name:'Neptune', radius:24.62, orbit:30.07*AU, color:0x2e70c1},
+];
 
-                planetMesh.position.set(p.orbitRadius, 0, 0);
-                
-                planetGroups[p.name] = planetGroup;
+const planetMeshes = {};
+const scaleFactor = 0.01; // scale distances for visualization
 
-                const orbitGeometry = new THREE.TorusGeometry(p.orbitRadius, 0.5, 30, 200);
-                const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide });
-                const orbitMesh = new THREE.Mesh(orbitGeometry, orbitMaterial);
-                orbitMesh.rotation.x = Math.PI / 2;
-                scene.add(orbitMesh);
+planetData.forEach(p=>{
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(p.radius*2,32,32),
+    new THREE.MeshStandardMaterial({color:p.color}));
+  mesh.position.set(p.orbit*scaleFactor,0,0);
+  scene.add(mesh);
+  planetMeshes[p.name] = mesh;
 
-                if (p.name === 'Earth') {
-                    // Moon has been removed.
+  // Orbit ring
+  const orbit = new THREE.RingGeometry(p.orbit*scaleFactor-0.5, p.orbit*scaleFactor+0.5, 128);
+  const orbitMat = new THREE.MeshBasicMaterial({color:0x555555, side:THREE.DoubleSide});
+  const orbitMesh = new THREE.Mesh(orbit, orbitMat);
+  orbitMesh.rotation.x = Math.PI/2;
+  scene.add(orbitMesh);
+});
 
-                    const satGeometry = new THREE.BoxGeometry(1, 1, 1);
-                    const satMaterial = new THREE.MeshLambertMaterial({color: 0xff0000});
-                    const satellite = new THREE.Mesh(satGeometry, satMaterial);
-                    const satOrbitGroup = new THREE.Object3D();
-                    satOrbitGroup.add(satellite);
-                    planetMesh.add(satOrbitGroup);
-                    satellite.position.set(15,0,0);
-                    
-                    planetGroups.SatOrbit = satOrbitGroup;
-                }
-            });
-            
-            // --- LIVE DATA FETCHING with FALLBACK ---
-            const API_URL = 'http://localhost:5000/api/planet-positions';
-            const statusEl = document.getElementById('status');
-            const loaderEl = document.getElementById('loader');
+scene.add(new THREE.AmbientLight(0x404040,1.0));
+scene.add(new THREE.PointLight(0xffffff,2));
 
-            async function updatePlanetPositions() {
-                try {
-                    const response = await fetch(API_URL);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const positions = await response.json();
-                    
-                    // If we successfully connect, ensure we're in live mode
-                    if (!liveDataMode) {
-                        liveDataMode = true;
-                        console.log("Reconnected to server. Switching to live data mode.");
-                    }
-                    
-                    for (const planetName in positions) {
-                        if (planetGroups[planetName]) {
-                            const angleDegrees = positions[planetName];
-                            const angleRadians = angleDegrees * (Math.PI / 180);
-                            planetGroups[planetName].rotation.y = angleRadians;
-                        }
-                    }
-                    statusEl.textContent = `Live Data - Last update: ${new Date().toLocaleTimeString()}`;
-                    statusEl.classList.remove('text-red-500');
-                    statusEl.classList.add('text-yellow-400');
-                    if (loaderEl) loaderEl.style.display = 'none';
+// --- Animate ---
+let time = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  time += 0.001;
 
-                } catch (error) {
-                    if (liveDataMode) { // Only log the switch once to avoid spamming the console
-                        console.error("Could not fetch planet data. Switching to offline simulation mode.", error);
-                        liveDataMode = false; // Switch to fallback mode
-                    }
-                    statusEl.textContent = "Error: Could not connect to server. Running in offline simulation mode.";
-                    statusEl.classList.remove('text-yellow-400');
-                    statusEl.classList.add('text-red-500');
-                    if (loaderEl) loaderEl.style.display = 'none';
-                }
-            }
+  planetData.forEach(p=>{
+    const mesh = planetMeshes[p.name];
+    const angle = time*0.5/(p.orbit*scaleFactor); // slower for outer planets
+    mesh.position.set(Math.cos(angle)*p.orbit*scaleFactor,0,Math.sin(angle)*p.orbit*scaleFactor);
+  });
 
-            // --- ANIMATION LOOP ---
-            function animate() {
-                requestAnimationFrame(animate);
-                controls.update();
+  renderer.render(scene,camera);
+}
+animate();
 
-                // Animate satellite locally for visual flair
-                if(planetGroups.SatOrbit) planetGroups.SatOrbit.rotation.y += 0.008;
+// --- Trajectory Line ---
+let trajectoryLine = null;
 
-                // If not in live mode, run the fallback local animation
-                if (!liveDataMode) {
-                    const time = Date.now() * 0.0001; // A time factor for animation speed
-                    planetsData.forEach(p => {
-                        if(planetGroups[p.name]) {
-                            planetGroups[p.name].rotation.y = time * p.speed;
-                        }
-                    });
-                }
+// --- Fetch Backend & Plot Trajectory ---
+document.getElementById("computeBtn").addEventListener("click", async ()=>{
+  const origin = document.getElementById("origin").value;
+  const target = document.getElementById("target").value;
+  const dep_start = document.getElementById("dep_start").value;
+  const dep_end = document.getElementById("dep_end").value;
+  const tof_min = parseFloat(document.getElementById("tof_min").value);
+  const tof_max = parseFloat(document.getElementById("tof_max").value);
+  const statusEl = document.getElementById("status");
 
-                renderer.render(scene, camera);
-            }
+  statusEl.textContent = "Computing best trajectory...";
+  try{
+    const porkchopReq = { origin, target, dep_start, dep_end, n_dep:20, tof_min, tof_max, n_tof:20 };
+    const bestRes = await fetch("http://127.0.0.1:8000/best_transfer",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(porkchopReq)
+    }).then(r=>r.json());
 
-            // --- EVENT LISTENERS & INITIAL CALLS ---
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            }, false);
+    const trajReq = { origin, target, dep_date:bestRes.dep_date, tof_days:bestRes.tof_days, n_samples:200 };
+    const trajRes = await fetch("http://127.0.0.1:8000/trajectory",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(trajReq)
+    }).then(r=>r.json());
 
-            // Fetch data immediately, then fetch again every 10 seconds
-            await updatePlanetPositions(); 
-            setInterval(updatePlanetPositions, 10000); 
+    if(trajectoryLine) scene.remove(trajectoryLine);
 
-            animate();
-        };
-    </script>
+    const points = trajRes.trajectory_km.map(p=>new THREE.Vector3(p[0]*scaleFactor,p[1]*scaleFactor,p[2]*scaleFactor));
+    const geom = new THREE.BufferGeometry().setFromPoints(points);
+    trajectoryLine = new THREE.Line(geom,new THREE.LineBasicMaterial({color:0xff0000, linewidth:2}));
+    scene.add(trajectoryLine);
+
+    statusEl.textContent = `Trajectory plotted! Δv = ${bestRes.dv.toFixed(2)} km/s, TOF = ${bestRes.tof_days.toFixed(1)} days`;
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = "Error computing trajectory. Make sure backend is running.";
+  }
+});
+</script>
 </body>
 </html>
-
-
