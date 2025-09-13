@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Google Map of Space</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for camera interaction -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #000; }
+        canvas { display: block; }
+        .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; position: absolute; top: 50%; left: 50%; margin-top: -25px; margin-left: -25px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div id="container" class="relative w-full h-screen">
+        <canvas id="spaceCanvas"></canvas>
+        <div id="loader" class="loader"></div>
+        <div class="absolute top-4 left-4 p-4 rounded-lg bg-black bg-opacity-50 max-w-sm">
+            <h1 class="text-3xl font-bold mb-2">Live Google Map of Space</h1>
+            <p class="text-sm text-gray-400">Navigate the solar system with your mouse. Planet positions are updated live from a real-time API.</p>
+            <p id="status" class="text-xs text-yellow-400 mt-2">Fetching live planet data from WSL server...</p>
+        </div>
+    </div>
+
+    <script>
+        window.onload = async function() {
+            // --- SCENE SETUP ---
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: document.getElementById('spaceCanvas') });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.position.set(0, 250, 600);
+
+            // --- STARFIELD & LIGHTING ---
+            const starGeometry = new THREE.BufferGeometry();
+            const starVertices = [];
+            for (let i = 0; i < 15000; i++) {
+                starVertices.push((Math.random() - 0.5) * 3000, (Math.random() - 0.5) * 3000, (Math.random() - 0.5) * 3000);
+            }
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+            const sunLight = new THREE.PointLight(0xffffff, 2, 0, 0);
+            scene.add(sunLight);
+
+            // --- CONTROLS ---
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 50;
+            controls.maxDistance = 2000;
+
+            // --- PLANET DATA (VISUALS & FALLBACK ANIMATION) ---
+            const planetsData = [
+                { name: 'Mercury', radius: 2.4, color: 0x8b8b8b, orbitRadius: 60, speed: 1.6 },
+                { name: 'Venus', radius: 6.0, color: 0xcd7f32, orbitRadius: 90, speed: 1.2 },
+                { name: 'Earth', radius: 6.3, color: 0x0077ff, orbitRadius: 120, speed: 1.0 },
+                { name: 'Mars', radius: 3.3, color: 0xff4500, orbitRadius: 150, speed: 0.8 },
+                { name: 'Jupiter', radius: 71.4, color: 0xa8772f, orbitRadius: 250, speed: 0.4 },
+                { name: 'Saturn', radius: 60.2, color: 0xf1c40f, orbitRadius: 350, speed: 0.3 },
+                { name: 'Uranus', radius: 25.5, color: 0x4dd5ff, orbitRadius: 450, speed: 0.2 },
+                { name: 'Neptune', radius: 24.7, color: 0x2e86c1, orbitRadius: 550, speed: 0.1 }
+            ];
+
+            let liveDataMode = true; // Flag to track if we're using live data or fallback
+            const planetGroups = {}; // Use an object for easy lookup by name
+
+            // --- CREATE 3D OBJECTS ---
+            // Sun
+            const sunGeometry = new THREE.SphereGeometry(25, 64, 64);
+            const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xfdb813 });
+            const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+            scene.add(sunMesh);
+
+            // Planets, Orbits, Moon, and Satellite
+            planetsData.forEach(p => {
+                const planetGeometry = new THREE.SphereGeometry(p.radius, 32, 32);
+                const planetMaterial = new THREE.MeshLambertMaterial({ color: p.color });
+                const planetMesh = new THREE.Mesh(planetGeometry, planetMaterial);
+                
+                const planetGroup = new THREE.Object3D();
+                planetGroup.add(planetMesh);
+                scene.add(planetGroup);
+
+                planetMesh.position.set(p.orbitRadius, 0, 0);
+                
+                planetGroups[p.name] = planetGroup;
+
+                const orbitGeometry = new THREE.TorusGeometry(p.orbitRadius, 0.5, 30, 200);
+                const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide });
+                const orbitMesh = new THREE.Mesh(orbitGeometry, orbitMaterial);
+                orbitMesh.rotation.x = Math.PI / 2;
+                scene.add(orbitMesh);
+
+                if (p.name === 'Earth') {
+                    // Moon has been removed.
+
+                    const satGeometry = new THREE.BoxGeometry(1, 1, 1);
+                    const satMaterial = new THREE.MeshLambertMaterial({color: 0xff0000});
+                    const satellite = new THREE.Mesh(satGeometry, satMaterial);
+                    const satOrbitGroup = new THREE.Object3D();
+                    satOrbitGroup.add(satellite);
+                    planetMesh.add(satOrbitGroup);
+                    satellite.position.set(15,0,0);
+                    
+                    planetGroups.SatOrbit = satOrbitGroup;
+                }
+            });
+            
+            // --- LIVE DATA FETCHING with FALLBACK ---
+            const API_URL = 'http://localhost:5000/api/planet-positions';
+            const statusEl = document.getElementById('status');
+            const loaderEl = document.getElementById('loader');
+
+            async function updatePlanetPositions() {
+                try {
+                    const response = await fetch(API_URL);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const positions = await response.json();
+                    
+                    // If we successfully connect, ensure we're in live mode
+                    if (!liveDataMode) {
+                        liveDataMode = true;
+                        console.log("Reconnected to server. Switching to live data mode.");
+                    }
+                    
+                    for (const planetName in positions) {
+                        if (planetGroups[planetName]) {
+                            const angleDegrees = positions[planetName];
+                            const angleRadians = angleDegrees * (Math.PI / 180);
+                            planetGroups[planetName].rotation.y = angleRadians;
+                        }
+                    }
+                    statusEl.textContent = `Live Data - Last update: ${new Date().toLocaleTimeString()}`;
+                    statusEl.classList.remove('text-red-500');
+                    statusEl.classList.add('text-yellow-400');
+                    if (loaderEl) loaderEl.style.display = 'none';
+
+                } catch (error) {
+                    if (liveDataMode) { // Only log the switch once to avoid spamming the console
+                        console.error("Could not fetch planet data. Switching to offline simulation mode.", error);
+                        liveDataMode = false; // Switch to fallback mode
+                    }
+                    statusEl.textContent = "Error: Could not connect to server. Running in offline simulation mode.";
+                    statusEl.classList.remove('text-yellow-400');
+                    statusEl.classList.add('text-red-500');
+                    if (loaderEl) loaderEl.style.display = 'none';
+                }
+            }
+
+            // --- ANIMATION LOOP ---
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+
+                // Animate satellite locally for visual flair
+                if(planetGroups.SatOrbit) planetGroups.SatOrbit.rotation.y += 0.008;
+
+                // If not in live mode, run the fallback local animation
+                if (!liveDataMode) {
+                    const time = Date.now() * 0.0001; // A time factor for animation speed
+                    planetsData.forEach(p => {
+                        if(planetGroups[p.name]) {
+                            planetGroups[p.name].rotation.y = time * p.speed;
+                        }
+                    });
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            // --- EVENT LISTENERS & INITIAL CALLS ---
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }, false);
+
+            // Fetch data immediately, then fetch again every 10 seconds
+            await updatePlanetPositions(); 
+            setInterval(updatePlanetPositions, 10000); 
+
+            animate();
+        };
+    </script>
+</body>
+</html>
+
+
