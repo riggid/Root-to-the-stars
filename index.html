@@ -3,71 +3,106 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Space Trajectory Planner</title>
+<title>Advanced Space Mission Planner</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #0b0b0f; }
   canvas { display: block; }
-  .planet-label {
-    color: white;
-    font-size: 12px;
-    text-shadow: 0 0 4px black;
-  }
+  .planet-label { color: white; font-size: 12px; text-shadow: 0 0 4px black; }
+  .control-panel { max-height: calc(100vh - 2rem); overflow-y: auto; }
+  .scrollbar::-webkit-scrollbar { width: 6px; }
+  .scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+  .scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
 </style>
 </head>
 <body>
 <div id="container" class="relative w-full h-screen">
   <canvas id="spaceCanvas"></canvas>
 
-  <div class="absolute top-4 left-4 p-4 rounded-lg bg-black bg-opacity-70 max-w-sm space-y-2">
-    <h1 class="text-2xl font-bold text-white mb-2">Trajectory Planner</h1>
+  <div class="absolute top-4 left-4 p-4 rounded-lg bg-black bg-opacity-80 max-w-sm space-y-3 control-panel scrollbar">
+    <h1 class="text-2xl font-bold text-white mb-3 flex items-center">
+      <span class="mr-2">🚀</span>Mission Planner Pro
+    </h1>
 
-    <label class="text-white font-medium">Origin Planet:</label>
-    <select id="origin" class="w-full mb-2 rounded border border-gray-600 bg-black text-white p-1">
-      <option>Earth</option>
-      <option>Mars</option>
-      <option>Venus</option>
-      <option>Mercury</option>
-      <option>Jupiter</option>
-      <option>Saturn</option>
-      <option>Uranus</option>
-      <option>Neptune</option>
-    </select>
+    <div class="bg-gray-900 p-3 rounded-lg">
+      <h2 class="text-lg font-bold text-white mb-2">Mission Parameters</h2>
+      
+      <label class="text-white font-medium">Origin Planet:</label>
+      <select id="origin" class="w-full mb-2 rounded border border-gray-600 bg-black text-white p-1">
+        <option>Earth</option>
+        <option>Mars</option>
+        <option>Venus</option>
+        <option>Mercury</option>
+        <option>Jupiter</option>
+        <option>Saturn</option>
+        <option>Uranus</option>
+        <option>Neptune</option>
+      </select>
 
-    <label class="text-white font-medium">Target Planet:</label>
-    <select id="target" class="w-full mb-2 rounded border border-gray-600 bg-black text-white p-1">
-      <option>Mars</option>
-      <option>Earth</option>
-      <option>Venus</option>
-      <option>Mercury</option>
-      <option>Jupiter</option>
-      <option>Saturn</option>
-      <option>Uranus</option>
-      <option>Neptune</option>
-    </select>
+      <label class="text-white font-medium">Target Planet:</label>
+      <select id="target" class="w-full mb-2 rounded border border-gray-600 bg-black text-white p-1">
+        <option>Mars</option>
+        <option>Earth</option>
+        <option>Venus</option>
+        <option>Mercury</option>
+        <option>Jupiter</option>
+        <option>Saturn</option>
+        <option>Uranus</option>
+        <option>Neptune</option>
+      </select>
 
-    <label class="text-white font-medium">Departure Earliest:</label>
-    <input type="date" id="dep_start" class="w-full mb-2 rounded p-1 bg-black border border-gray-600 text-white" value="2025-09-20">
+      <label class="text-white font-medium">Departure Earliest:</label>
+      <input type="date" id="dep_start" class="w-full mb-2 rounded p-1 bg-black border border-gray-600 text-white" value="2025-09-20">
 
-    <label class="text-white font-medium">TOF (days):</label>
-    <div class="flex space-x-2 mb-2">
-      <input type="number" id="tof_min" class="w-1/2 rounded p-1 bg-black border border-gray-600 text-white" value="120">
-      <input type="number" id="tof_max" class="w-1/2 rounded p-1 bg-black border border-gray-600 text-white" value="400">
+      <label class="text-white font-medium">TOF Range (days):</label>
+      <div class="flex space-x-2 mb-2">
+        <input type="number" id="tof_min" class="w-1/2 rounded p-1 bg-black border border-gray-600 text-white" value="120" placeholder="Min">
+        <input type="number" id="tof_max" class="w-1/2 rounded p-1 bg-black border border-gray-600 text-white" value="400" placeholder="Max">
+      </div>
     </div>
 
-    <label class="text-white font-medium">View Planets At:</label>
-    <input type="date" id="viewDate" class="w-full mb-2 rounded p-1 bg-black border border-gray-600 text-white" value="2025-09-13">
+    <div class="bg-gray-900 p-3 rounded-lg">
+      <h2 class="text-lg font-bold text-white mb-2">Spacecraft Selection</h2>
+      
+      <label class="text-white font-medium">Choose Rocket:</label>
+      <select id="spacecraft" class="w-full mb-2 rounded border border-gray-600 bg-black text-white p-1">
+        <option value="">Select Spacecraft...</option>
+      </select>
 
-    <button id="computeBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded font-semibold">Compute Trajectory</button>
-    <button id="refreshPositions" class="w-full bg-green-600 hover:bg-green-700 text-white p-2 rounded font-semibold mb-2">Refresh Planet Positions</button>
-    <p id="status" class="text-yellow-400 text-sm mt-1">Select planets and press Compute.</p>
-    <p id="positionStatus" class="text-green-400 text-xs">Loading live planet positions...</p>
+      <div id="spacecraftInfo" class="hidden bg-gray-800 p-2 rounded text-xs text-gray-300">
+        <div id="rocketSpecs"></div>
+      </div>
+
+      <label class="text-white font-medium mt-2 block">Payload Mass (kg):</label>
+      <input type="number" id="payloadMass" class="w-full mb-2 rounded p-1 bg-black border border-gray-600 text-white" value="10000" placeholder="Enter payload mass">
+    </div>
+
+    <div class="bg-gray-900 p-3 rounded-lg">
+      <h2 class="text-lg font-bold text-white mb-2">View Controls</h2>
+      
+      <label class="text-white font-medium">View Planets At:</label>
+      <input type="date" id="viewDate" class="w-full mb-2 rounded p-1 bg-black border border-gray-600 text-white" value="2025-09-13">
+      
+      <button id="refreshPositions" class="w-full bg-green-600 hover:bg-green-700 text-white p-2 rounded font-semibold mb-2">Refresh Planet Positions</button>
+    </div>
+
+    <button id="computeBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded font-semibold">Compute Mission</button>
     
-    <div id="results" class="mt-4 hidden">
+    <p id="status" class="text-yellow-400 text-sm mt-1">Select spacecraft and planets, then press Compute Mission.</p>
+    <p id="positionStatus" class="text-green-400 text-xs">Loading live planet positions...</p>
+  </div>
+
+  <div id="resultsPanel" class="absolute top-4 right-4 p-4 rounded-lg bg-black bg-opacity-80 max-w-md space-y-3 hidden control-panel scrollbar">
+    <h2 class="text-xl font-bold text-white mb-3 flex items-center">
+      <span class="mr-2">📊</span>Mission Analysis
+    </h2>
+
+    <div id="trajectoryResults" class="bg-gray-900 p-3 rounded-lg">
       <h3 class="text-lg font-bold text-white mb-2">Trajectory Details</h3>
-      <div class="bg-gray-800 p-3 rounded-lg text-sm">
+      <div class="text-sm space-y-1">
         <p id="resultOrigin" class="text-white"></p>
         <p id="resultTarget" class="text-white"></p>
         <p id="resultDeparture" class="text-white"></p>
@@ -75,71 +110,204 @@
         <p id="resultDeltaV" class="text-white"></p>
       </div>
     </div>
+
+    <div id="fuelAnalysis" class="bg-gray-900 p-3 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-2">Fuel & Performance</h3>
+      <div class="text-sm space-y-1">
+        <p id="fuelRequired" class="text-green-400"></p>
+        <p id="fuelEfficiency" class="text-blue-400"></p>
+        <p id="payloadCapacity" class="text-yellow-400"></p>
+        <p id="missionFeasibility" class="font-bold"></p>
+      </div>
+    </div>
+
+    <div id="costAnalysis" class="bg-gray-900 p-3 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-2">Mission Cost</h3>
+      <div class="text-sm space-y-1">
+        <p id="launchCost" class="text-green-300"></p>
+        <p id="fuelCost" class="text-blue-300"></p>
+        <p id="totalCost" class="text-yellow-300 font-bold"></p>
+      </div>
+    </div>
+
+    <div id="chartContainer" class="bg-gray-900 p-3 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-2">Performance Metrics</h3>
+      <canvas id="performanceChart" width="300" height="200"></canvas>
+    </div>
+
+    <button id="closeResults" class="w-full bg-red-600 hover:bg-red-700 text-white p-2 rounded">Close Analysis</button>
   </div>
 </div>
 
 <script>
-let scene, camera, renderer;
-
-scene = new THREE.Scene();
-camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 5000);
-renderer = new THREE.WebGLRenderer({ antialias:true, canvas: document.getElementById('spaceCanvas') });
-renderer.setSize(window.innerWidth, window.innerHeight);
-
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.minDistance = 1;
-controls.maxDistance = 1000;
-
-camera.position.set(20, 8, 20);
-camera.lookAt(0, 0, 0);
-
-// --- Stars ---
-const starGeo = new THREE.BufferGeometry();
-const starVertices = [];
-for(let i=0;i<10000;i++){
-  starVertices.push((Math.random()-0.5)*6000, (Math.random()-0.5)*6000, (Math.random()-0.5)*6000);
-}
-starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVertices,3));
-const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0xffffff, size:1.2 }));
-scene.add(stars);
-
-// --- Sun ---
-const sun = new THREE.Mesh(new THREE.SphereGeometry(5,32,32), new THREE.MeshBasicMaterial({ color:0xffdd33 }));
-scene.add(sun);
-
-// --- Planets ---
-const AU = 149597870; // km
-const planetData = [
-  {name:'Mercury', radius:2.44, orbit:0.387*AU, color:0x909090},
-  {name:'Venus', radius:6.05, orbit:0.723*AU, color:0xe6c27a},
-  {name:'Earth', radius:6.37, orbit:1*AU, color:0x3a90ff},
-  {name:'Mars', radius:3.39, orbit:1.524*AU, color:0xff4500},
-  {name:'Jupiter', radius:69.91, orbit:5.203*AU, color:0xd4a06a},
-  {name:'Saturn', radius:58.23, orbit:9.537*AU, color:0xf1d17b},
-  {name:'Uranus', radius:25.36, orbit:19.191*AU, color:0x7fe6ff},
-  {name:'Neptune', radius:24.62, orbit:30.07*AU, color:0x2e70c1},
-];
-
-const planetMeshes = {};
-const scaleFactor = 0.00001;
-
-planetData.forEach(p=>{
-  const planetSize = Math.max(p.radius * 5, 2);
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(planetSize,32,32),
-    new THREE.MeshStandardMaterial({color:p.color}));
-  scene.add(mesh);
-  planetMeshes[p.name] = mesh;
-});
-
-scene.add(new THREE.AmbientLight(0x404040,1.0));
-scene.add(new THREE.PointLight(0xffffff,2));
-
-// --- Live Planet Positions ---
+// Global variables
+let scene, camera, renderer, controls;
+let planetMeshes = {};
 let planetPositions = {};
+let trajectoryLine = null;
+let spacecraftData = {};
 
-async function updatePlanetPositions(date=null) {
+// Initialize Three.js scene
+function initScene() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 5000);
+  renderer = new THREE.WebGLRenderer({ antialias:true, canvas: document.getElementById('spaceCanvas') });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.minDistance = 1;
+  controls.maxDistance = 1000;
+
+  camera.position.set(20, 8, 20);
+  camera.lookAt(0, 0, 0);
+
+  // Add stars
+  const starGeo = new THREE.BufferGeometry();
+  const starVertices = [];
+  for(let i=0;i<10000;i++){
+    starVertices.push((Math.random()-0.5)*6000, (Math.random()-0.5)*6000, (Math.random()-0.5)*6000);
+  }
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVertices,3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0xffffff, size:1.2 }));
+  scene.add(stars);
+
+  // Add Sun
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(5,32,32), new THREE.MeshBasicMaterial({ color:0xffdd33 }));
+  scene.add(sun);
+
+  // Add planets
+  const AU = 149597870;
+  const planetData = [
+    {name:'Mercury', radius:2.44, orbit:0.387*AU, color:0x909090},
+    {name:'Venus', radius:6.05, orbit:0.723*AU, color:0xe6c27a},
+    {name:'Earth', radius:6.37, orbit:1*AU, color:0x3a90ff},
+    {name:'Mars', radius:3.39, orbit:1.524*AU, color:0xff4500},
+    {name:'Jupiter', radius:69.91, orbit:5.203*AU, color:0xd4a06a},
+    {name:'Saturn', radius:58.23, orbit:9.537*AU, color:0xf1d17b},
+    {name:'Uranus', radius:25.36, orbit:19.191*AU, color:0x7fe6ff},
+    {name:'Neptune', radius:24.62, orbit:30.07*AU, color:0x2e70c1},
+  ];
+
+  const scaleFactor = 0.00001;
+
+  planetData.forEach(p=>{
+    const planetSize = Math.max(p.radius * 5, 2);
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(planetSize,32,32),
+      new THREE.MeshStandardMaterial({color:p.color})
+    );
+    scene.add(mesh);
+    planetMeshes[p.name] = {mesh, orbit: p.orbit * scaleFactor};
+  });
+
+  scene.add(new THREE.AmbientLight(0x404040,1.0));
+  scene.add(new THREE.PointLight(0xffffff,2));
+}
+
+// Load spacecraft data from OUR backend
+async function loadSpacecraftData() {
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/spacecraft');
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    spacecraftData = await response.json();
+    
+    const spacecraftSelect = document.getElementById('spacecraft');
+    spacecraftSelect.innerHTML = '<option value="">Select Spacecraft...</option>';
+    
+    // Loop through the keys of the returned object
+    for (const name in spacecraftData) {
+      const option = document.createElement('option');
+      option.value = name; // Use the name as the value
+      option.textContent = name;
+      spacecraftSelect.appendChild(option);
+    }
+    
+    console.log('Loaded spacecraft data from backend:', spacecraftData);
+  } catch (error) {
+    console.error('Failed to load spacecraft data from backend:', error);
+    document.getElementById('status').textContent = 'Error: Could not load spacecraft data from backend.';
+  }
+}
+
+// Update spacecraft info display
+function updateSpacecraftInfo(rocketName) {
+  const rocket = spacecraftData[rocketName];
+  if (!rocket) return;
+  
+  const infoDiv = document.getElementById('spacecraftInfo');
+  const specsDiv = document.getElementById('rocketSpecs');
+  
+  // Display data fields available from our backend
+  specsDiv.innerHTML = `
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <div><strong>Dry Mass:</strong> ${(rocket.dry_mass_kg || 0).toLocaleString()} kg</div>
+      <div><strong>Payload:</strong> ${(rocket.payload_capacity_kg || 0).toLocaleString()} kg</div>
+      <div><strong>Thrust:</strong> ${(rocket.thrust_n / 1000).toLocaleString()} kN</div>
+      <div><strong>Isp:</strong> ${rocket.specific_impulse_s} s</div>
+      <div><strong>Fuel Capacity:</strong> ${(rocket.fuel_capacity_kg || 0).toLocaleString()} kg</div>
+      <div><strong>Reusable:</strong> ${rocket.reusable ? 'Yes' : 'No'}</div>
+    </div>
+  `;
+  
+  infoDiv.classList.remove('hidden');
+}
+
+// Update performance chart
+function updatePerformanceChart(missionData, rocketName) {
+  const ctx = document.getElementById('performanceChart').getContext('2d');
+  
+  if (window.missionChart) {
+    window.missionChart.destroy();
+  }
+  
+  const fuel = missionData.fuel_analysis;
+  const cost = missionData.cost_analysis;
+  const util = missionData.spacecraft_utilization;
+  
+  window.missionChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Fuel Efficiency', 'Payload Usage', 'Cost Effectiveness', 'Fuel Margin', 'Mission Feasible'],
+      datasets: [{
+        label: rocketName,
+        data: [
+          Math.min(fuel.fuel_efficiency_percent, 100),
+          util.payload_utilization_percent,
+          Math.max(0, 100 - (cost.cost_per_kg_payload / 1000)),
+          Math.min(fuel.fuel_margin_percent, 100),
+          fuel.feasible ? 100 : 0
+        ],
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: 'rgba(59, 130, 246, 1)',
+        pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgba(59, 130, 246, 1)'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: { color: 'white' }
+        }
+      },
+      scales: {
+        r: {
+          angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+          pointLabels: { color: 'white', font: { size: 10 } },
+          ticks: { color: 'white', backdropColor: 'transparent' }
+        }
+      }
+    }
+  });
+}
+
+// Update planet positions
+async function updatePlanetPositions(date = null) {
   const statusEl = document.getElementById('positionStatus');
   try {
     statusEl.textContent = 'Updating planet positions...';
@@ -147,87 +315,166 @@ async function updatePlanetPositions(date=null) {
     if (date) url += `?date=${date}`;
     const response = await fetch(url);
     planetPositions = await response.json();
-    statusEl.textContent = `Loaded positions (${Object.keys(planetPositions).length} planets)`;
+    statusEl.textContent = `Loaded positions for ${date || 'today'}`;
   } catch (error) {
     console.error('Failed to fetch planet positions:', error);
-    statusEl.textContent = 'Failed to load planet positions';
+    statusEl.textContent = 'Failed to load planet positions - using simulation mode';
+    // Simulate positions for demo
+    const planets = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
+    planets.forEach(planet => {
+      planetPositions[planet] = Math.random() * 360;
+    });
   }
 }
-updatePlanetPositions();
 
-// Animate planets
-function animate(){
+// Animation loop
+function animate() {
   requestAnimationFrame(animate);
   controls.update();
 
-  planetData.forEach(p=>{
-    const mesh = planetMeshes[p.name];
-    if (planetPositions[p.name] !== undefined) {
-      const longitude = planetPositions[p.name] * Math.PI / 180;
-      const x = Math.cos(longitude) * p.orbit * scaleFactor;
-      const z = Math.sin(longitude) * p.orbit * scaleFactor;
-      mesh.position.set(x, 0, z);
+  Object.keys(planetMeshes).forEach(planetName => {
+    const planetInfo = planetMeshes[planetName];
+    if (planetPositions[planetName] !== undefined) {
+      const longitude = planetPositions[planetName] * Math.PI / 180;
+      const x = Math.cos(longitude) * planetInfo.orbit;
+      const z = Math.sin(longitude) * planetInfo.orbit;
+      planetInfo.mesh.position.set(x, 0, z);
     }
   });
 
-  renderer.render(scene,camera);
+  renderer.render(scene, camera);
 }
-animate();
 
-// --- Refresh Planet Positions Button ---
-document.getElementById("refreshPositions").addEventListener("click", async ()=>{
-  const date = document.getElementById("viewDate").value;
+// Event listeners
+document.getElementById('spacecraft').addEventListener('change', function() {
+  const selectedName = this.value;
+  if (selectedName !== '') {
+    updateSpacecraftInfo(selectedName);
+  } else {
+    document.getElementById('spacecraftInfo').classList.add('hidden');
+  }
+});
+
+document.getElementById('refreshPositions').addEventListener('click', async () => {
+  const date = document.getElementById('viewDate').value;
   await updatePlanetPositions(date);
 });
 
-// --- Trajectory Plotting ---
-let trajectoryLine = null;
+document.getElementById('computeBtn').addEventListener('click', async () => {
+  const origin = document.getElementById('origin').value;
+  const target = document.getElementById('target').value;
+  const dep_start = document.getElementById('dep_start').value;
+  const tof_min = parseFloat(document.getElementById('tof_min').value);
+  const tof_max = parseFloat(document.getElementById('tof_max').value);
+  const spacecraftName = document.getElementById('spacecraft').value;
+  const payloadMass = parseFloat(document.getElementById('payloadMass').value) || 10000;
+  const statusEl = document.getElementById('status');
 
-document.getElementById("computeBtn").addEventListener("click", async ()=>{
-  const origin = document.getElementById("origin").value;
-  const target = document.getElementById("target").value;
-  const dep_start = document.getElementById("dep_start").value;
-  const tof_min = parseFloat(document.getElementById("tof_min").value);
-  const tof_max = parseFloat(document.getElementById("tof_max").value);
-  const statusEl = document.getElementById("status");
+  if (spacecraftName === '') {
+    statusEl.textContent = "Please select a spacecraft first!";
+    return;
+  }
 
-  statusEl.textContent = "Computing best trajectory...";
-  try{
-    const bestRes = await fetch("http://127.0.0.1:8000/best_transfer",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ origin, target, dep_start, tof_min, tof_max })
-    }).then(r=>r.json());
+  statusEl.textContent = "Computing optimal mission profile...";
+  
+  try {
+    // 1. Get best transfer window
+    const bestRes = await fetch("http://127.0.0.1:8000/best_transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ origin, target, dep_start, n_dep: 50, tof_min, tof_max, n_tof: 50 })
+    }).then(r => r.json());
 
-    const trajRes = await fetch("http://127.0.0.1:8000/trajectory",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ origin, target, dep_date:bestRes.dep_date, tof_days:bestRes.tof_days })
-    }).then(r=>r.json());
+    if(bestRes.detail) throw new Error(bestRes.detail);
 
-    if(trajectoryLine) scene.remove(trajectoryLine);
+    // 2. Get full mission analysis
+    const missionRes = await fetch("http://127.0.0.1:8000/trajectory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        origin, target,
+        dep_date: bestRes.dep_date,
+        tof_days: bestRes.tof_days,
+        spacecraft_name: spacecraftName,
+        payload_mass_kg: payloadMass
+      })
+    }).then(r => r.json());
 
-    const points = trajRes.trajectory_km.map(p => 
-      new THREE.Vector3(p[0]*scaleFactor, p[2]*scaleFactor, p[1]*scaleFactor)
+    if(missionRes.detail) throw new Error(missionRes.detail);
+    
+    // Update trajectory visualization
+    if (trajectoryLine) scene.remove(trajectoryLine);
+    const scaleFactor = 0.00001;
+    const points = missionRes.trajectory.trajectory_km.map(p => 
+      new THREE.Vector3(p[0] * scaleFactor, p[2] * scaleFactor, p[1] * scaleFactor)
     );
     const geom = new THREE.BufferGeometry().setFromPoints(points);
-    trajectoryLine = new THREE.Line(geom, new THREE.LineBasicMaterial({color: 0xff0000}));
+    trajectoryLine = new THREE.Line(geom, new THREE.LineBasicMaterial({ color: 0xff0000 }));
     scene.add(trajectoryLine);
 
-    statusEl.textContent = `Trajectory computed: Departure ${bestRes.dep_date}, Δv ${bestRes.dv.toFixed(2)} km/s`;
-
-    // Show details
+    // Update results display
     document.getElementById('resultOrigin').textContent = `Origin: ${origin}`;
     document.getElementById('resultTarget').textContent = `Target: ${target}`;
-    document.getElementById('resultDeparture').textContent = `Departure Date: ${bestRes.dep_date}`;
-    document.getElementById('resultTOF').textContent = `Time of Flight: ${bestRes.tof_days.toFixed(1)} days`;
-    document.getElementById('resultDeltaV').textContent = `Delta-V Required: ${bestRes.dv.toFixed(2)} km/s`;
-    document.getElementById('results').classList.remove('hidden');
-  }catch(err){
+    document.getElementById('resultDeparture').textContent = `Departure: ${bestRes.dep_date}`;
+    document.getElementById('resultTOF').textContent = `Flight Time: ${bestRes.tof_days.toFixed(1)} days`;
+    document.getElementById('resultDeltaV').textContent = `Delta-V: ${missionRes.trajectory.total_dv_kms.toFixed(2)} km/s`;
+
+    // Update fuel analysis from backend response
+    const fuel = missionRes.fuel_analysis;
+    const currentSpecs = spacecraftData[spacecraftName];
+    document.getElementById('fuelRequired').textContent = 
+      `Fuel Required: ${(fuel.required_fuel_kg / 1000).toFixed(1)} tonnes`;
+    document.getElementById('fuelEfficiency').textContent = 
+      `Fuel Efficiency: ${fuel.fuel_efficiency_percent.toFixed(1)}%`;
+    document.getElementById('payloadCapacity').textContent = 
+      `Payload vs Capacity: ${payloadMass.toLocaleString()}/${currentSpecs.payload_capacity_kg.toLocaleString()} kg`;
+    document.getElementById('missionFeasibility').textContent = 
+      `Mission Status: ${fuel.feasible ? '✅ FEASIBLE' : '❌ NOT FEASIBLE'}`;
+    document.getElementById('missionFeasibility').className = 
+      `font-bold ${fuel.feasible ? 'text-green-400' : 'text-red-400'}`;
+
+    // Update cost analysis from backend response
+    const cost = missionRes.cost_analysis;
+    document.getElementById('launchCost').textContent = 
+      `Launch Cost: $${(cost.launch_cost_usd / 1000000).toFixed(1)}M`;
+    document.getElementById('fuelCost').textContent = 
+      `Fuel Cost: $${(cost.fuel_cost_usd / 1000).toFixed(0)}K`;
+    document.getElementById('totalCost').textContent = 
+      `Total Cost: $${(cost.total_mission_cost_usd / 1000000).toFixed(1)}M`;
+
+    // Update performance chart
+    updatePerformanceChart(missionRes, spacecraftName);
+
+    statusEl.textContent = `Mission computed successfully! Status: ${fuel.feasible ? 'Feasible' : 'Challenging'}`;
+    document.getElementById('resultsPanel').classList.remove('hidden');
+
+  } catch (err) {
     console.error(err);
-    statusEl.textContent = "Error computing trajectory.";
+    statusEl.textContent = `Error: ${err.message}`;
+    statusEl.className = 'text-red-400 text-sm mt-1';
   }
 });
+
+document.getElementById('closeResults').addEventListener('click', () => {
+  document.getElementById('resultsPanel').classList.add('hidden');
+});
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Initialize everything
+async function init() {
+  initScene();
+  await loadSpacecraftData();
+  await updatePlanetPositions(document.getElementById('viewDate').value);
+  animate();
+}
+
+init();
 </script>
 </body>
 </html>
