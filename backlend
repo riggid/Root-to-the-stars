@@ -1,0 +1,56 @@
+# You'll need to install Flask: pip install flask skyfield flask-cors
+from flask import Flask, jsonify
+from skyfield.api import load
+from flask_cors import CORS
+
+app = Flask(__name__)
+# CORS is needed to allow your HTML file (on Windows) to request data from this server (in WSL)
+CORS(app) 
+
+# Load the ephemeris data once when the server starts for better performance
+ts = load.timescale()
+planets_ephem = load('de421.bsp')
+sun = planets_ephem['sun']
+# Define the planet objects we need from skyfield
+planet_names = ['mercury', 'venus', 'earth', 'mars', 'jupiter barycenter', 'saturn barycenter', 'uranus barycenter', 'neptune barycenter']
+
+@app.route('/api/planet-positions')
+def get_planet_positions():
+    """
+    This function is called every time the frontend requests the URL.
+    It calculates the current heliocentric longitude for each planet.
+    """
+    t = ts.now() # Get the current, real-world time
+    positions = {}
+    
+    for name in planet_names:
+        planet = planets_ephem[name]
+        # Calculate the position of the planet as observed from the sun
+        heliocentric = sun.at(t).observe(planet)
+        # We get the ecliptic longitude, which is the angle around the sun
+        _, lon, _ = heliocentric.ecliptic_latlon()
+        
+        # Clean up the name to be simple, e.g., 'jupiter barycenter' -> 'Jupiter'
+        simple_name = name.split(' ')[0].capitalize()
+        positions[simple_name] = lon.degrees
+        
+    return jsonify(positions)
+
+if __name__ == '__main__':
+    # Run the server. It will be accessible from your Windows browser.
+    # The host='0.0.0.0' makes it accessible from outside the WSL instance (i.e., from Windows)
+    app.run(host='0.0.0.0', port=5000, debug=True)
+```
+
+'''To run this backend in WSL:**
+
+1.  Open your WSL terminal.
+2.  Navigate to where you saved the file.
+3.  Install the necessary Python libraries:
+    ```bash
+    pip install flask skyfield flask-cors
+    ```
+4.  Run the server:
+    ```bash
+    python api.py
+    '''
