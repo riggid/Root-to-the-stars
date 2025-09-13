@@ -3,6 +3,7 @@
 Enhanced backend.py - FastAPI backend for "Advanced Space Mission Planner"
 Includes spacecraft analysis, fuel calculations, and mission feasibility assessment
 """
+import os
 import json
 import numpy as np
 import requests
@@ -32,7 +33,8 @@ app.add_middleware(
 
 # ---------- Load ephemerides ----------
 ts = load.timescale()
-planets = load("../data/de421.bsp")
+
+planets = load(os.path.join("data/de421.bsp"))
 
 PLANET_MAP = {
     "Mercury": "mercury barycenter",
@@ -44,6 +46,11 @@ PLANET_MAP = {
     "Uranus": "uranus barycenter",
     "Neptune": "neptune barycenter",
     "Pluto": "pluto barycenter",
+}
+# ✨ FIX: Renamed variable and added Uranus and Neptune orbital periods
+ORBITAL_PERIODS_DAYS = {
+    "Mercury": 88, "Venus": 225, "Earth": 365, "Mars": 687,
+    "Jupiter": 4333, "Saturn": 10759, "Uranus": 30687, "Neptune": 60190,
 }
 
 # ---------- Enhanced Models ----------
@@ -102,7 +109,7 @@ class SpacecraftComparison(BaseModel):
     comparison_metrics: dict
 
 # ---------- Load Spacecraft Database from JSON ----------
-def load_spacecraft_db(filepath: str = "../data/spacecraft.json") -> dict:
+def load_spacecraft_db(filepath: str = "data/spacecraft.json") -> dict:
     
     """Loads the spacecraft database from a JSON file."""
     try:
@@ -206,7 +213,7 @@ def get_spacecraft_specs(spacecraft_name: str):
         raise HTTPException(status_code=404, detail="Spacecraft not found")
     return SPACECRAFT_DATABASE[spacecraft_name]
 
-@app.get("/api/planet-positions", response_model=Dict[str, list]) # Changed response model
+@app.get("/api/planet-positions", response_model=Dict[str, list])
 def get_planet_positions(date: str = Query(None, description="ISO date (YYYY-MM-DD) to view planets at")):
     """Get heliocentric 3D positions (x,y,z in km) for all major planets""" # Updated docstring
     t = ts.now()
@@ -225,6 +232,30 @@ def get_planet_positions(date: str = Query(None, description="ISO date (YYYY-MM-
         # ✨ FIX: Get the full 3D position vector instead of just the longitude
         position_vector = planets["sun"].at(t).observe(planet_obj).position
         positions[name] = position_vector.km.tolist() # Returns [x, y, z] in km
+    
+    return positions
+
+@app.get("/api/orbit-path/{planet_name}", response_model=List[List[float]])
+@app.get("/api/orbit-path/{planet_name}", response_model=List[List[float]])
+def get_orbit_path(planet_name: str, samples: int = 200):
+    """Calculates a list of 3D coordinates representing a planet's orbit."""
+    if planet_name not in PLANET_MAP or planet_name not in ORBITAL_PERIODS_DAYS:
+        raise HTTPException(status_code=404, detail="Planet not found")
+
+    period = ORBITAL_PERIODS_DAYS[planet_name]
+    planet_body = planets[PLANET_MAP[planet_name]]
+
+    # ✨ FIX: Use astropy.time.Time for calculations to ensure unit compatibility
+    t0 = Time.now()
+    # This line now works correctly as it's a pure astropy operation
+    times = t0 + np.linspace(0, period, samples) * u.day
+
+    positions = []
+    for t in times:
+        # Convert from astropy time to skyfield time just before getting position
+        t_skyfield = ts.from_astropy(t)
+        position_vector = planets["sun"].at(t_skyfield).observe(planet_body).position
+        positions.append(position_vector.km.tolist())
     
     return positions
 

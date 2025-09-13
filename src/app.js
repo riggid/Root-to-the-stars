@@ -95,19 +95,76 @@ async function loadSpacecraftData() {
 
 async function updatePlanetPositions(date = null) {
   const statusEl = document.getElementById('positionStatus');
+  // Breadcrumb #1: Log when the function starts
+  console.log(`[DEBUG] updatePlanetPositions called with date: ${date}`);
+
   try {
     statusEl.textContent = 'Updating planet positions...';
     let url = `${API_BASE_URL}/api/planet-positions`;
     if (date) url += `?date=${date}`;
+    
     const response = await fetch(url);
-    if (!response.ok) throw new Error(`Server error fetching positions`);
-    planetPositions = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    planetPositions = data;
+    
+    // Breadcrumb #2: Log a success message and the data received
+    console.log('✅ [DEBUG] SUCCESS: Planet positions updated.', planetPositions);
+    
     statusEl.textContent = `Displaying positions for: ${date || 'today'}`;
     statusEl.className = 'text-green-400 text-xs';
+
   } catch (error) {
-    console.error('Failed to fetch planet positions:', error);
+    // Breadcrumb #3: Log an error message if anything fails
+    console.error('❌ [DEBUG] ERROR in updatePlanetPositions:', error);
+
     statusEl.textContent = 'Error: Failed to load planet positions!';
     statusEl.className = 'text-red-400 text-xs';
+  }
+}
+// app.js
+
+async function drawAllOrbits() {
+  console.log('Fetching and drawing planet orbits...');
+  const scaleFactor = 0.00001;
+  const planetNames = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
+
+  // Material for all orbit lines (faint white)
+  const orbitMaterial = new THREE.LineBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.25
+  });
+
+  for (const name of planetNames) {
+    try {
+      // Fetch the pre-calculated orbit data from the backend
+      const response = await fetch(`${API_BASE_URL}/api/orbit-path/${name}`);
+      if (!response.ok) throw new Error(`Failed to fetch orbit for ${name}`);
+      const orbitPoints = await response.json();
+
+      // Convert the data points into 3D vectors for Three.js
+      const points = orbitPoints.map(p =>
+        new THREE.Vector3(
+          p[0] * scaleFactor, // x
+          p[2] * scaleFactor, // y (using backend's z)
+          p[1] * scaleFactor  // z (using backend's y)
+        )
+      );
+
+      // Create the line geometry and add it to the scene
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const orbitLine = new THREE.Line(geometry, orbitMaterial);
+      scene.add(orbitLine);
+
+    } catch (error) {
+      // This will log if an orbit is missing from the data file (e.g., Uranus/Neptune)
+      console.warn(`Could not draw orbit for ${name}:`, error);
+    }
   }
 }
 
@@ -235,7 +292,7 @@ document.getElementById('computeBtn').addEventListener('click', async () => {
     if(bestRes.detail) throw new Error(bestRes.detail);
 
     // ✨ FIX 2: Update 3D view to show planets at departure
-    const departureDate = bestRes.dep_date.split('T')[0];
+    const departureDate = bestRes.dep_date.split(' ')[0];
     await updatePlanetPositions(departureDate);
 
     // 2. Get full mission analysis
@@ -304,6 +361,7 @@ window.addEventListener('resize', () => {
 // --- MAIN EXECUTION ---
 async function init() {
   initScene();
+  drawAllOrbits(); 
   await loadSpacecraftData();
   await updatePlanetPositions(document.getElementById('viewDate').value);
   animate();
