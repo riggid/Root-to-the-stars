@@ -43,5 +43,87 @@
     "payload_capacity_kg": 95000,
     "cost_per_launch_usd": 2000000000,
     "reusable": false
-  }
+  },
+  "Atlas V": {
+    "dry_mass_kg": 546700,
+    "fuel_capacity_kg": 284089,
+    "specific_impulse_s": 450.5,
+    "thrust_n": 3827000,
+    "payload_capacity_kg": 18850,
+    "cost_per_launch_usd": 109000000,
+    "reusable": false
+},
+"Delta IV Heavy": {
+    "dry_mass_kg": 1505000,
+    "fuel_capacity_kg": 1616000,
+    "specific_impulse_s": 412,
+    "thrust_n": 9420000,
+    "payload_capacity_kg": 28370,
+    "cost_per_launch_usd": 350000000,
+    "reusable": false
+},
+"Ariane 5 ":{
+    "dry_mass_kg": 170000,
+    "fuel_capacity_kg": 780000,
+    "specific_impulse_s": 432,
+    "thrust_n": 13400000,
+    "payload_capacity_kg": 21000,
+    "cost_per_launch_usd": 178000000,
+    "reusable": false
+},
+"Long March 3B":{
+    "dry_mass_kg": 458000,
+    "fuel_capacity_kg": 584300,
+    "specific_impulse_s": 426,
+    "thrust_n": 5923000,
+    "payload_capacity_kg": 11200,
+    "cost_per_launch_usd": 70000000,
+    "reusable": false
+},
+"Proton-M":{
+    "dry_mass_kg": 693000,
+    "fuel_capacity_kg": 705000,
+    "specific_impulse_s": 327,
+    "thrust_n": 10400000,
+    "payload_capacity_kg": 23000,
+    "cost_per_launch_usd": 65000000,
+    "reusable": false
+},
+"Ariane 6 ":{
+    "dry_mass_kg": 150000,
+    "fuel_capacity_kg": 540000,
+    "specific_impulse_s": 465,
+    "thrust_n": 13500000,
+    "payload_capacity_kg": 21500,
+    "cost_per_launch_usd": 75000000,
+    "reusable": false
+},
+"New Glenn":{
+    "dry_mass_kg": 1300000,
+    "fuel_capacity_kg": 2100000,
+    "specific_impulse_s": 445,
+    "thrust_n": 17100000,
+    "payload_capacity_kg": 45000,
+    "cost_per_launch_usd": 100000000,
+    "reusable": true
+},
+"SLS Block 2":{
+    "dry_mass_kg": 95000,
+    "fuel_capacity_kg": 1100000,
+    "specific_impulse_s": 465,
+    "thrust_n": 44000000,
+    "payload_capacity_kg": 130000,
+    "cost_per_launch_usd": 2200000000,
+    "reusable": false
+},
+"Vulcan Centaur ":{
+    "dry_mass_kg": 546700,
+    "fuel_capacity_kg": 480000,
+    "specific_impulse_s": 450,
+    "thrust_n": 7565000,
+    "payload_capacity_kg": 27200,
+    "cost_per_launch_usd": 110000000,
+    "reusable": true
 }
+}
+
